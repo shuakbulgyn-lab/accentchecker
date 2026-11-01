@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Accent Check</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=Figtree:wght@400;600&display=swap">
+<style>
+:root{--bg:#f3f7f6;--card:#fff;--ink:#10282b;--mute:#52696b;--teal:#0f766e;--coral:#ff6b4a;--line:#cfe0dd;--ok:#157f3b;--bad:#c2331a;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0d1c1e;--card:#15292c;--ink:#eaf5f3;--mute:#9bb5b2;--teal:#3ccfc0;--line:#25403f;--ok:#58d98a;--bad:#ff8a73}}
+:root[data-theme="dark"]{--bg:#0d1c1e;--card:#15292c;--ink:#eaf5f3;--mute:#9bb5b2;--teal:#3ccfc0;--line:#25403f;--ok:#58d98a;--bad:#ff8a73}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 17px/1.5 Figtree,system-ui,sans-serif}
+main{max-width:640px;margin:0 auto;padding:18px 16px 56px}
+h1,h2{font-family:'Bricolage Grotesque',system-ui,sans-serif;line-height:1.1;margin:0 0 10px}
+h1{font-size:clamp(34px,9vw,48px);font-weight:800}h2{font-size:26px;font-weight:800}
+.brand{font:800 18px 'Bricolage Grotesque',sans-serif;color:var(--teal);margin-bottom:18px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px;margin-bottom:14px}
+.mute{color:var(--mute);font-size:15px}
+label{display:block;font-weight:600;margin:12px 0 6px}
+input[type=text]{width:100%;font:600 20px Figtree,sans-serif;padding:12px 14px;border-radius:12px;border:2px solid var(--line);background:var(--bg);color:var(--ink);text-transform:uppercase}
+button{font:600 16px Figtree,sans-serif;border:0;border-radius:999px;padding:13px 22px;cursor:pointer;background:var(--coral);color:#1b0d09;margin:4px 8px 4px 0}
+button.sec{background:transparent;color:var(--ink);border:2px solid var(--line)}
+button:disabled{opacity:.4;cursor:not-allowed}
+button:focus-visible,input:focus-visible{outline:3px solid var(--teal);outline-offset:2px}
+.seg{display:flex;gap:8px;flex-wrap:wrap}
+.opt{display:block;width:100%;text-align:left;background:var(--bg);color:var(--ink);border:2px solid var(--line);border-radius:14px;margin:6px 0;padding:12px 14px}
+.opt.on{border-color:var(--teal);background:color-mix(in srgb,var(--teal) 16%,var(--bg))}
+.opt.ok{border-color:var(--ok)}.opt.no{border-color:var(--bad)}
+.prog{height:8px;background:var(--line);border-radius:8px;overflow:hidden;margin:6px 0 16px}.prog i{display:block;height:100%;background:var(--teal)}
+.big{font:800 36px 'Bricolage Grotesque',sans-serif;text-align:center;margin:10px 0}
+.score{font:800 44px 'Bricolage Grotesque',sans-serif;color:var(--teal)}
+.res{white-space:pre-wrap;background:var(--bg);border:1px dashed var(--line);border-radius:12px;padding:12px;font-size:15px;user-select:all}
+.warn{background:color-mix(in srgb,var(--coral) 16%,var(--card));border-radius:12px;padding:10px 12px;font-size:15px;margin:10px 0}
+</style>
+</head>
+<body><main><div class="brand">Accent Check · Listening &amp; Pronunciation</div><div id="app"></div></main>
+<script>
+var LISTEN=[
+{a:'en-GB',t:'The meeting starts at half past two, so please don’t be late.',q:'What time does the meeting start?',o:['2:00','2:30','3:30'],c:1},
+{a:'en-US',t:'I’m going to take the subway to the airport. My flight leaves at six fifteen.',q:'How will the speaker get to the airport?',o:['By subway','By bus','By taxi'],c:0},
+{a:'en-AU',t:'We’re having a barbecue on Saturday afternoon. Could you bring some drinks?',q:'What should the listener bring?',o:['Salad','Drinks','Dessert'],c:1},
+{a:'en-CA',t:'The store opens at nine, but the pharmacy next door opens an hour earlier.',q:'When does the pharmacy open?',o:['Eight','Nine','Ten'],c:0},
+{a:'en-GB',t:'I booked a table for four people at seven o’clock on Friday.',q:'How many people is the table for?',o:['Two','Four','Seven'],c:1},
+{a:'en-US',t:'My brother lost his backpack on the bus, so he called the lost-and-found office.',q:'What did the brother lose?',o:['A phone','Keys','A backpack'],c:2},
+{a:'en-AU',t:'It’s going to rain tomorrow morning, but it should clear up by lunchtime.',q:'When will the rain stop?',o:['By lunchtime','In the evening','At night'],c:0},
+{a:'en-CA',t:'Our flight was delayed by two hours because of heavy snow.',q:'Why was the flight delayed?',o:['Strong wind','Technical problem','Heavy snow'],c:2}];
+var ACC=[['en-GB','British'],['en-US','American'],['en-AU','Australian'],['en-CA','Canadian']];
+var PRON=['three','thirty','very','water','comfortable','vegetable','The weather is nice today.','I would like a cup of tea.'];
+var S={view:'start',code:'',group:'A',ver:'pre',tgt:'en-US',i:0,plays:0,pick:null,acc:null,lis:[],pr:[],heard:null,busy:false};
+var app=document.getElementById('app');
+try{S.code=localStorage.getItem('ac_code')||'';S.group=localStorage.getItem('ac_group')||'A'}catch(e){}
+function esc(x){return String(x).replace(/&/g,'&amp;').replace(/</g,'&lt;')}
+var synth=window.speechSynthesis,SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+function speak(t,lang,rate){
+ if(!synth){return false}
+ synth.cancel();var u=new SpeechSynthesisUtterance(t);u.lang=lang;u.rate=rate||0.9;
+ var vs=synth.getVoices();var v=vs.find(function(x){return x.lang.replace('_','-')===lang})||vs.find(function(x){return x.lang.indexOf(lang.slice(0,2))===0});
+ if(v)u.voice=v;synth.speak(u);return true}
+function items(){return S.ver==='pre'?LISTEN.slice(0,4):S.ver==='post'?LISTEN.slice(4):LISTEN}
+function verName(){return S.ver==='pre'?'pre-test (recordings 1–4)':S.ver==='post'?'post-test (recordings 5–8)':'full (recordings 1–8)'}
+function prog(n,t){return '<div class="prog"><i style="width:'+Math.round(n/t*100)+'%"></i></div>'}
+function lev(a,b){var m=[],i,j;for(i=0;i<=a.length;i++){m[i]=[i]}for(j=0;j<=b.length;j++){m[0][j]=j}
+ for(i=1;i<=a.length;i++)for(j=1;j<=b.length;j++)m[i][j]=Math.min(m[i-1][j]+1,m[i][j-1]+1,m[i-1][j-1]+(a[i-1]===b[j-1]?0:1));return m[a.length][b.length]}
+function norm(s){return s.toLowerCase().replace(/[^a-z0-9 ]/g,'').replace(/\s+/g,' ').trim()}
+function sim(a,b){a=norm(a);b=norm(b);var L=Math.max(a.length,b.length)||1;return Math.round((1-lev(a,b)/L)*100)}
+
+function render(){
+ var h='';
+ if(S.view==='start'){
+  h='<h1>Check how you hear and speak English</h1><p class="mute">Two short tests: <b>Listening</b> and <b>Pronunciation</b>. It is not a test for marks. / Это не оценка, а исследование.</p>'+
+  '<div class="card"><label for="code">Your code (not your name)</label><input id="code" type="text" maxlength="6" placeholder="A01" value="'+esc(S.code)+'" autocomplete="off">'+
+  '<label>Group</label><div class="seg"><button class="sec" data-g="A" '+(S.group==='A'?'style="border-color:var(--teal)"':'')+'>Group A</button><button class="sec" data-g="B" '+(S.group==='B'?'style="border-color:var(--teal)"':'')+'>Group B</button></div>'+
+  '<label><input type="checkbox" id="ok" style="width:20px;height:20px;vertical-align:-4px"> I take part voluntarily and use only my code. / Участвую добровольно, указываю только код.</label>'+
+  '<button id="go" data-act="go">Start</button></div>'+
+  '<p class="mute">Use headphones in a quiet place. For the best result open this page in Chrome.</p>';
+ }
+ else if(S.view==='menu'){
+  h='<h2>Hello, '+esc(S.code)+'</h2><p class="mute">Group '+S.group+'. Choose a test.</p>'+
+  '<div class="card"><h2 style="font-size:21px">Listening</h2><p class="mute">Listen to short recordings. Answer a question and choose the accent.</p>'+
+  '<label>Version</label><div class="seg"><button class="sec" data-v="pre" '+(S.ver==='pre'?'style="border-color:var(--teal)"':'')+'>Pre-test (1–4)</button><button class="sec" data-v="post" '+(S.ver==='post'?'style="border-color:var(--teal)"':'')+'>Post-test (5–8)</button><button class="sec" data-v="all" '+(S.ver==='all'?'style="border-color:var(--teal)"':'')+'>All (1–8)</button></div>'+
+  '<button data-act="startL">Start listening</button></div>'+
+  '<div class="card"><h2 style="font-size:21px">Pronunciation</h2><p class="mute">Listen to a model, then say the word or sentence. The computer tells you what it heard.</p>'+
+  (SR?'<button data-act="startP">Start pronunciation</button>':'<div class="warn">Speech recognition is not available in this browser. Open the page in Chrome on a phone or a computer.</div>')+'</div>'+
+  (S.lis.length||S.pr.length?'<button class="sec" data-act="res">See my results</button>':'');
+ }
+ else if(S.view==='listen'){
+  var L=items(),it=L[S.i];
+  h=prog(S.i,L.length)+'<p class="mute">Recording '+(S.i+1)+' of '+L.length+'</p><div class="card"><button data-act="play" '+(S.plays>=2?'disabled':'')+'>▶ Play ('+(2-S.plays)+' left)</button>'+
+  (synth?'':'<div class="warn">Audio is not available in this browser.</div>')+
+  '<p style="font-weight:600;margin-top:14px">'+esc(it.q)+'</p>'+it.o.map(function(o,k){return '<button class="opt'+(S.pick===k?' on':'')+'" data-p="'+k+'">'+esc(o)+'</button>'}).join('')+
+  '<p style="font-weight:600;margin-top:14px">Which accent do you hear?</p>'+ACC.map(function(a){return '<button class="opt'+(S.acc===a[0]?' on':'')+'" data-a="'+a[0]+'">'+a[1]+'</button>'}).join('')+
+  '</div><button data-act="next" '+((S.pick===null||S.acc===null)?'disabled':'')+'>'+(S.i+1<L.length?'Next':'Finish')+'</button>';
+ }
+ else if(S.view==='pron'){
+  var w=PRON[S.i],r=S.heard;
+  h=prog(S.i,PRON.length)+'<p class="mute">Item '+(S.i+1)+' of '+PRON.length+'</p><div class="card"><div class="big">'+esc(w)+'</div>'+
+  '<label for="tg">Model accent</label><div class="seg" id="tg">'+ACC.map(function(a){return '<button class="sec" data-t="'+a[0]+'" '+(S.tgt===a[0]?'style="border-color:var(--teal)"':'')+'>'+a[1]+'</button>'}).join('')+'</div>'+
+  '<p><button class="sec" data-act="model">🔊 Listen to the model</button><button data-act="rec" '+(S.busy?'disabled':'')+'>'+(S.busy?'Listening…':'🎤 Say it')+'</button></p>'+
+  (r?'<div class="warn">I heard: <b>“'+esc(r.text||'nothing')+'”</b><br>Match: <b>'+r.score+'%</b> '+(r.score>=80?'✔ clear':'— try again or go on')+'</div>':'')+'</div>'+
+  '<button data-act="pnext" '+(r?'':'disabled')+'>'+(S.i+1<PRON.length?'Next':'Finish')+'</button>';
+ }
+ else if(S.view==='result'){
+  var lc=S.lis.filter(function(x){return x.cOk}).length,la=S.lis.filter(function(x){return x.aOk}).length,n=S.lis.length;
+  var pa=S.pr.length?Math.round(S.pr.reduce(function(s,x){return s+x.score},0)/S.pr.length):null,pc=S.pr.filter(function(x){return x.score>=80}).length;
+  var txt='Code: '+S.code+' · Group '+S.group;
+  if(n)txt+='\nListening '+verName()+': content '+lc+'/'+n+', accent '+la+'/'+n+', mistakes '+((n-lc)+(n-la));
+  if(S.pr.length)txt+='\nPronunciation: average match '+pa+'%, clear '+pc+'/'+S.pr.length;
+  S.txt=txt;
+  h='<h2>Your results</h2>'+(n?'<div class="card"><div class="mute">Listening</div><div class="score">'+(lc+la)+' / '+(2*n)+'</div><p>Content: '+lc+'/'+n+' · Accent: '+la+'/'+n+'</p></div>':'')+
+  (S.pr.length?'<div class="card"><div class="mute">Pronunciation</div><div class="score">'+pa+'%</div><p>Clear: '+pc+'/'+S.pr.length+'</p><p class="mute">This shows how well the computer understood you. It is not a full pronunciation grade.</p></div>':'')+
+  '<div class="card"><p class="mute">Show this to the club leaders or copy it and send it:</p><div class="res" id="res">'+esc(txt)+'</div><button data-act="copy">Copy result</button><span id="cp" class="mute"></span></div>'+
+  '<button class="sec" data-act="back">Back to menu</button>';
+ }
+ app.innerHTML=h;
+}
+function finishL(){S.view='result';render()}
+app.addEventListener('click',function(e){
+ var b=e.target.closest('button');if(!b)return;
+ if(b.dataset.g){S.group=b.dataset.g;S.code=(document.getElementById('code')||{}).value||S.code;render();return}
+ if(b.dataset.v){S.ver=b.dataset.v;render();return}
+ if(b.dataset.p!==undefined){S.pick=+b.dataset.p;render();return}
+ if(b.dataset.a){S.acc=b.dataset.a;render();return}
+ if(b.dataset.t){S.tgt=b.dataset.t;render();return}
+ var a=b.dataset.act;
+ if(a==='go'){var c=document.getElementById('code').value.trim().toUpperCase();
+  if(!c){alert('Please enter your code.');return}
+  if(!document.getElementById('ok').checked){alert('Please tick the box to continue.');return}
+  S.code=c;try{localStorage.setItem('ac_code',c);localStorage.setItem('ac_group',S.group)}catch(x){}S.view='menu';render()}
+ else if(a==='startL'){S.lis=[];S.i=0;S.plays=0;S.pick=null;S.acc=null;S.view='listen';render()}
+ else if(a==='play'){var it=items()[S.i];if(S.plays<2){speak(it.t,it.a,0.9);S.plays++;render()}}
+ else if(a==='next'){var it2=items()[S.i];S.lis.push({cOk:S.pick===it2.c,aOk:S.acc===it2.a});S.i++;S.plays=0;S.pick=null;S.acc=null;
+  if(S.i>=items().length)finishL();else render()}
+ else if(a==='startP'){S.pr=[];S.i=0;S.heard=null;S.view='pron';render()}
+ else if(a==='model'){speak(PRON[S.i],S.tgt,0.8)}
+ else if(a==='rec'){
+  if(S.busy)return;S.busy=true;render();
+  var rc=new SR();rc.lang=S.tgt;rc.interimResults=false;rc.maxAlternatives=1;
+  rc.onresult=function(ev){var t=ev.results[0][0].transcript;S.heard={text:t,score:sim(t,PRON[S.i])}};
+  rc.onerror=function(ev){S.heard={text:'',score:0,err:ev.error};if(ev.error==='not-allowed'||ev.error==='service-not-allowed')alert('Please allow the microphone for this page.')};
+  rc.onend=function(){S.busy=false;if(!S.heard)S.heard={text:'',score:0};render()};
+  S.heard=null;try{rc.start()}catch(x){S.busy=false;render()}}
+ else if(a==='pnext'){S.pr.push({score:S.heard.score});S.heard=null;S.i++;if(S.i>=PRON.length){S.view='result'}render()}
+ else if(a==='res'){S.view='result';render()}
+ else if(a==='back'){S.view='menu';render()}
+ else if(a==='copy'){var done=function(m){document.getElementById('cp').textContent=m};
+  try{navigator.clipboard.writeText(S.txt).then(function(){done('Copied')},function(){done('Select the text and copy it')})}catch(x){done('Select the text and copy it')}}
+});
+if(synth&&synth.onvoiceschanged!==undefined)synth.onvoiceschanged=function(){};
+render();
+</script></body></html>
